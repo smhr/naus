@@ -1,6 +1,6 @@
 /***************************************************************************
- *   Copyright (C) 2008 by Andreas Kuepper                                 *
- *   akuepper@astro.uni-bonn.de                                            *
+ *   Copyright (C) 2008-2015 by Andreas Kuepper                            *
+ *   ahwkuepper@gmail.com                                                  *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -17,7 +17,9 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
-
+/***************************************************************************
+ *   Compile using the command: cc -o naus naus.c -lm                      *
+ ***************************************************************************/
 /***************************************************************************
  *  star array description:                                                *
  *   star[x][0]    -  name                                                 *
@@ -124,6 +126,7 @@ int get_velocitydispersion(int Nt,double **start,int statust, double *sigmat, do
 int get_energy(int Nt, double **start, int statust, double *Etemp, double mvxt, double mvyt, double mvzt);
 int radii(int Nt, double **start, int statust, double *LRt, double mxt, double myt, double mzt, double *Mt);
 int Kradii(int Nt, double **start, int statust, double *LRt, double mxt, double myt, double mzt, double *Mt, double *racc);
+int Lradii(int Nt, double **start, int statust, double *LLRt, double mxt, double myt, double mzt, double *Ltot);
 int surfacedensityprofile(int Nt, double **start, double **profilet, double mxt, double myt, double mzt, double mvxt, double mvyt, double mvzt, int viewt, int numberradialbinst, double *VGt, double **profile_inside_rtidet, double **profile_bound_starst);
 int get_orbit(double *RGt,double *VGt,double **along_the_orbitt,int pcnumberintervalst,int signt);
 void get_force(double *x, double *v, double *a);
@@ -150,7 +153,7 @@ int main(int argc , char * argv[]){
 	int Nmax = 300000;                      //size of data array, minimum is twice the initial star number
 	int Mend = 0;                           //stop analysis if M<Mend [M_sun]
 	int analysistimestep = 1;               //time step for analysis [Myr]; 1: all available time steps
-	int quick_and_dirty_analysis = 0;       //calculation of binding energy and neighbours; 0: detailed; 1: fast
+	int quick_and_dirty_analysis = 1;       //calculation of binding energy and neighbours; 0: detailed; 1: fast
 	int standard_densitylevel = 5;          //Casertano & Hut density estimator level (j) (standard = 5)
 	int standard_neighbornumber	= 20;       //length of neighbour list [20 is a reasonable size]
 	int standard_status = 2;                //calculate basic cluster parameters by taking into account: 1: all bound stars within rtide; 2: all stars within rtide; 3: all stars within 2*rtide
@@ -592,12 +595,18 @@ int main(int argc , char * argv[]){
 						if (step == 0) Minit = M;
 						
 						Kradii(Ninit, star, status, KR, mx, my, mz, &Minit, &racc);
+                        
+                        double Ltot;
+                        double LLR[6];
+						Lradii(Ntot, star, status, LLR, mx, my, mz, &Ltot);
 						
 						rcsuche(Ntot, star, neighborlist, mx, my, mz, densitylevel, &Rc);
 						
 						if (outputtype) printf("M = %g\tLR2 = %g\tLR5 = %g\tLR10 = %g\tLR20 = %g\tRh = %g\tLR90 = %g\tRc = %g\n", M, LR[0], LR[1], LR[2], LR[3], LR[4], LR[5], Rc);
-						
-						
+						printf("M = %10.2f\tR2 = %8.4f\tR5 = %8.4f\tR10 = %8.4f\tR20 = %8.4f\tRh = %8.4f\tR90 = %8.4f\tRc = %8.4f\n", M, LR[0], LR[1], LR[2], LR[3], LR[4], LR[5], Rc);
+						printf("L = %10.2f\tR2 = %8.4f\tR5 = %8.4f\tR10 = %8.4f\tR20 = %8.4f\tRh = %8.4f\tR90 = %8.4f\n", Ltot, LLR[0], LLR[1], LLR[2], LLR[3], LLR[4], LLR[5]);
+                        printf("Rh/LRh = %f\n",LR[4]/LLR[4]);
+                        
 						//determine surface-density profile					
 						if (sdp) {
 							//double rmax = 50.0;//pc
@@ -692,7 +701,7 @@ int main(int argc , char * argv[]){
 						
 						
 						//write summary to .new
-						fprintf(new,"%g\t%g\t%i\t%i\t%i\t%i\t%i\t%i\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",time,M,N,n[0],n[1],n[2],n[3],nbin[0],fbin,sigma,sigmauncor,E[0],E[1],E[2],Euncor[0],Euncor[1],Euncor[2],kT,LR[0],LR[1],LR[2],LR[3],LR[4],LR[5],Rc,rtide,omega,dphi,L, mv,KR[0],KR[1],KR[2],KR[3],KR[4],KR[5],KR[6],KR[7],KR[8],KR[9],racc);
+						fprintf(new,"%g\t%g\t%i\t%i\t%i\t%i\t%i\t%i\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n",time,M,N,n[0],n[1],n[2],n[3],nbin[0],fbin,sigma,sigmauncor,E[0],E[1],E[2],Euncor[0],Euncor[1],Euncor[2],kT,LR[0],LR[1],LR[2],LR[3],LR[4],LR[5],Rc,rtide,omega,LLR[4],Ltot, mv,KR[0],KR[1],KR[2],KR[3],KR[4],KR[5],KR[6],KR[7],KR[8],KR[9],racc);
 						
 						
 						//write surface-density profile to .sdp
@@ -1536,9 +1545,9 @@ void get_force(double *x, double *v, double *a){
     //Log Halo from Koposov et al. (2010)
     r3 = *x * *x + *(x+1) * *(x+1) + *(x+2)/q_halo * *(x+2)/q_halo + RCIRC*RCIRC; //R^2!
         
-    a3x = -VCIRC *  *x/r3;
-    a3y = -VCIRC *  *(x+1)/r3;
-    a3z = -VCIRC *  *(x+2)/(q_halo*q_halo*r3);
+    a3x = -VCIRC*VCIRC *  *x/r3;
+    a3y = -VCIRC*VCIRC *  *(x+1)/r3;
+    a3z = -VCIRC*VCIRC *  *(x+2)/(q_halo*q_halo*r3);
         
     //alternatively
     //NFW halo
@@ -1709,8 +1718,8 @@ int Kradii(int Nt, double **start, int statust, double *LRt, double mxt, double 
 			LRt[8] = radiiarray[l][0];
 		else if ((LRt[9] == 0) && (Mtemp >= 0.8*Mgestemp))
 			LRt[9] = radiiarray[l][0];
-		else if ((LRt[5] == 0) && (Mtemp >= 0.9*Mgestemp))
-			LRt[5] = radiiarray[l][0];
+		else if ((LRt[10] == 0) && (Mtemp >= 0.9*Mgestemp))
+			LRt[10] = radiiarray[l][0];
 	}
 	
 	for (l=0;l<Nt;l++) free (radiiarray[l]);
@@ -1718,6 +1727,103 @@ int Kradii(int Nt, double **start, int statust, double *LRt, double mxt, double 
 	
 	return 1;
 }
+
+int Lradii(int Nt, double **start, int statust, double *LLRt, double mxt, double myt, double mzt, double *Ltot){
+
+	int l;
+	double **radiiarray;
+	radiiarray = (double **)calloc(Nt,sizeof(double *));
+	for (l=0;l<Nt;l++){
+		radiiarray[l] = (double *)calloc(2,sizeof(double));
+		if (radiiarray[l] == NULL) {
+			printf("\nMemory allocation failed!\n");
+			return 0;
+		}
+	}
+	
+    double Teff, lTeff, BC, kb, abvmag;
+    double bcc[8];
+    double BCsun, abvmagsun;
+    
+    kb = 5.6704E-08*0.5*1.3914E9*0.5*1.3914E9/3.846E26;  //Stefan-Boltzmann constant in Lsun Rsun^-2 K^-4
+    
+    bcc[0] = -4222907.80590972;
+    bcc[1] = 7209333.13326442;
+    bcc[2] = -5267167.04593882;
+    bcc[3] = 2134724.55938336;
+    bcc[4] = -518317.954642773;
+    bcc[5] = 75392.2372207101;
+    bcc[6] = -6082.7301194776;
+    bcc[7] = 209.990478646363;
+    
+    BCsun = 0.11;  //sun's bolometric correction
+    abvmagsun = 4.83; //sun's absolute V magnitude
+    
+	double rtemp, Lgestemp = 0.0, Ltemp = 0.0;
+	LLRt[0] = 0.0; LLRt[1] = 0.0; LLRt[2] = 0.0; LLRt[3] = 0.0; LLRt[4] = 0.0; LLRt[5] = 0.0;
+/*
+	for (l=0;l<Nt;l++){
+		if ((start[l][0]) && (start[l][13]<statust) && (start[l][13]>= 0.0) && (start[l][9]) && (start[l][8]>=0.0)) {
+            Teff = pow(start[l][8]/(4.0*PI*start[l][9]*start[l][9]*kb),0.25);
+            if ((Teff>3000.0) && (Teff<55000.0)) {
+                lTeff = log10(Teff);
+                BC = bcc[0] + bcc[1]*lTeff + bcc[2]*pow(lTeff,2) + bcc[3]*pow(lTeff,3) + bcc[4]*pow(lTeff,4) + bcc[5]*pow(lTeff,5) + bcc[6]*pow(lTeff,6) + bcc[7]*pow(lTeff,7);
+                abvmag = -2.5*log10(start[l][8])-BC+BCsun+abvmagsun;
+                if (abvmag > -99) {
+                    Lgestemp += abvmag;//start[l][8];//Luminosity instead of mass
+                    rtemp = sqrt(pow(start[l][1]-mxt,2) + pow(start[l][2]-myt,2));//2D + pow(start[l][3]-mzt,2));//3D
+                    radiiarray[l][0] = rtemp;
+                    radiiarray[l][1] = abvmag;//start[l][8];//Luminosity instead of mass
+                }
+            } else {
+                radiiarray[l][0] = 1000000;
+                radiiarray[l][1] = -100;
+            }
+		} else {
+			radiiarray[l][0] = 1000000;
+			radiiarray[l][1] = -100;
+		}
+	}
+*/
+	for (l=0;l<Nt;l++){
+		if ((start[l][0]) && (start[l][13]<statust) && (start[l][13]>= 0.0) && (start[l][9]) && (start[l][8]>=0.0)) {
+            Lgestemp += start[l][8];//Luminosity instead of mass
+            rtemp = sqrt(pow(start[l][1]-mxt,2) + pow(start[l][2]-myt,2));//2D + pow(start[l][3]-mzt,2));//3D
+            radiiarray[l][0] = rtemp;
+            radiiarray[l][1] = start[l][8];//Luminosity instead of mass
+		} else {
+			radiiarray[l][0] = 1000000;
+			radiiarray[l][1] = 0;
+		}
+	}
+	
+	*Ltot = Lgestemp;
+	
+	shellsort_reverse(radiiarray, Nt, 2);
+	
+	for (l=0;l<Nt;l++) {
+		Ltemp += radiiarray[l][1];
+		if ((LLRt[0] == 0) && (Ltemp >= 0.02*Lgestemp))
+			LLRt[0] = radiiarray[l][0];
+		else if ((LLRt[1] == 0) && (Ltemp >= 0.05*Lgestemp))
+			LLRt[1] = radiiarray[l][0];
+		else if ((LLRt[2] == 0) && (Ltemp >= 0.1*Lgestemp))
+			LLRt[2] = radiiarray[l][0];
+		else if ((LLRt[3] == 0) && (Ltemp >= 0.2*Lgestemp))
+			LLRt[3] = radiiarray[l][0];
+		else if ((LLRt[4] == 0) && (Ltemp >= 0.5*Lgestemp))
+			LLRt[4] = radiiarray[l][0];
+		else if ((LLRt[5] == 0) && (Ltemp >= 0.9*Lgestemp))
+			LLRt[5] = radiiarray[l][0];
+	}
+	
+	for (l=0;l<Nt;l++) free (radiiarray[l]);
+	free(radiiarray);
+	
+	return 1;
+}
+
+
 
 int surfacedensityprofile(int Nt, double **start, double **profilet, double mxt, double myt, double mzt, double mvxt, double mvyt, double mvzt, int viewt, int numberradialbinst, double *VGt, double **profile_inside_rtidet, double **profile_bound_starst){
 	int l;
@@ -3160,8 +3266,8 @@ int readin2(FILE *posfile, int *Ntott, int *Nt, double *timet, double *tbart, do
 
     q_halo = as[39];
     
-    VCIRC = sqrt(as[32]**vbart);
-    RCIRC = sqrt(as[33]**rbart);
+    VCIRC = sqrt(as[32])**vbart;
+    RCIRC = sqrt(as[33])**rbart;
     if (RCIRC <= 0.0) RCIRC = 1.0;
 
     MNFW = as[37]**mbart;
@@ -3694,15 +3800,15 @@ int readin6(FILE *posfile, int *Ntott, int *Nt, double *timet, double *tbart, do
     
     q_halo = as[39];
     
-    VCIRC = sqrt(as[32]**vbart);
-    RCIRC = sqrt(as[33]**rbart);
+    VCIRC = sqrt(as[32])**vbart;
+    RCIRC = sqrt(as[33])**rbart;
     if (RCIRC <= 0.0) RCIRC = 1.0;
     
     MNFW = as[37]**mbart;
     RNFW = as[38]**rbart;
     if (RNFW <= 0.0) RNFW = 1.0;
 
-	
+
 	/************************************
 	 * write single stars to star array *
 	 ************************************/
